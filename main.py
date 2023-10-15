@@ -23,40 +23,30 @@ msize1=128
 msize2=128
 imagem = np.zeros ((256,msize1,msize2))
 b = np.zeros ((256,msize1,msize2))
-a = np.zeros ((256,msize1,msize2))
 ImgPerf = np.zeros((128,128))
 
 ## Abrindo as imagens no formato array para que possamos manipulá-las
 
 for o in range (1,129): 
-    f = open('SPECTdew'+ str(o) +'.sin', 'rb')
+    f = open('/home/vinicius/dev/Ic/Simulations/JaszaczakSIN/SPECTdew'+ str(o) +'.sin', 'rb')
     img_str = f.read()
     raw_image = np.frombuffer(img_str, np.uint16)
     k = np.size(raw_image)
-    z = int(k)/128/128
+    z = int(k/128/128)
 
     raw_image.shape = (int(z),128,128)
-
-    ## Montando diferentes imagens
-    if o>65:
-        
-       ## Imagem da janela principal
-        b[0:int(z),:,:]=b[0:int(z),:,:]+raw_image[0:int(z),:,:]
-        
-    else: 
-        
-        ## Imagem da janela secundária
-        a[0:int(z),:,:]=a[0:int(z),:,:]+raw_image[0:int(z),:,:]
+    b[0:z,:,:,] = b[0:z,:,:,] +raw_image
 
     
 ## Método da Dual Energy Window
 n=0.575
 
-imagem = cm.metodo_dew(b,a,n)
+imagem = cm.metodo_dew(b[0:128,:,:],b[128:256,:,:],n)
 
 w=cm.signaltonoise(imagem, axis=None)
 print(w)
-
+cm.mostrar_imagem3d(imagem,"Osem,wiener e DEW", 64, "gray")
+print(imagem.shape)
 
 ## Reconstrução 3D com Tomopy
 
@@ -79,13 +69,13 @@ recon = tomopy.circ_mask(reconstrucao_osem, axis=0, ratio=0.925)
 ## Adição de outros filtros em cada imagem pós reconstrução
 for l in range (0,128):
     
-    cm.mostrar_imagem3d(reconstrucao_osem,"Osem e DEW", l, "gray")
+    # cm.mostrar_imagem3d(reconstrucao_osem,"Osem e DEW", l, "gray")
     
     ## Método de Wiener
     GamaC = 5*10^4
     sigma = 0.75
     Img_Wiener=wiener.wiener(reconstrucao_osem,l,sigma,GamaC)
-    cm.mostrar_imagem2d(Img_Wiener,"Osem,wiener e DEW", l, "gray")
+    # cm.mostrar_imagem2d(Img_Wiener,"Osem,wiener e DEW", l, "gray")
 
     ## Filtro de Chang ##
     resol = 0.04
@@ -97,10 +87,16 @@ for l in range (0,128):
     ImgCorFinal=np.multiply(Img_Chang,Img_Wiener)
 
     ## ### ###
-    cm.mostrar_imagem2d(ImgCorFinal,"Img Final", l, "gray")
+    # cm.mostrar_imagem2d(ImgCorFinal,"Img Final", l, "gray")
     
-    if ((l>=39) and (l<=49)):
+    if ((l>=42) and (l<=47)):
+        cm.mostrar_imagem2d(ImgCorFinal,"Img Final", l, "gray")
         ImgPerf=ImgPerf+ImgCorFinal
         
         
-cm.mostrar_imagem2d(ImgPerf,"End", l, "gray")
+fig = plt.figure()
+fig.add_subplot(1,1,1)
+plt.title(f'Reconstruction Osem Tomopy')
+plt.imshow(ImgPerf, cmap='gray')
+plt.axis('off')
+plt.show()
